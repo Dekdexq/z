@@ -162,27 +162,35 @@ function ZiiqLib:CreateWindow(opts)
     self._panelMap = {}
     self._toggleStates = {}
 
+    -- Anti-cheat: randomize GUI name so it cant be detected
+    local guiId = "Z_"..tostring(math.random(100000,999999))
+    
     -- Destroy previous
     if gethui then
         for _,v in ipairs(gethui():GetChildren()) do
-            if v.Name == "ZiiqUI" then v:Destroy() end
+            if v.Name:sub(1,2) == "Z_" then v:Destroy() end
         end
+    elseif game:GetService("CoreGui"):FindFirstChild("ZiiqUI") then
+        game:GetService("CoreGui"):FindFirstChild("ZiiqUI"):Destroy()
     else
         for _,v in ipairs(lp.PlayerGui:GetChildren()) do
-            if v.Name == "ZiiqUI" then v:Destroy() end
+            if v.Name:sub(1,2) == "Z_" then v:Destroy() end
         end
     end
 
-    -- ScreenGui
+    -- ScreenGui (Anti-cheat safe placement)
     local sg = Instance.new("ScreenGui")
-    sg.Name = "ZiiqUI"
+    sg.Name = guiId
     sg.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     sg.ResetOnSpawn = false
-    if syn and syn.protect_gui then
+    -- Priority: gethui > protect_gui+CoreGui > PlayerGui
+    if gethui then
+        sg.Parent = gethui()
+    elseif syn and syn.protect_gui then
         syn.protect_gui(sg)
         sg.Parent = game:GetService("CoreGui")
-    elseif gethui then
-        sg.Parent = gethui()
+    elseif cloneref then
+        sg.Parent = cloneref(game:GetService("CoreGui"))
     else
         sg.Parent = lp.PlayerGui
     end
@@ -431,6 +439,17 @@ function Window:AddSettings(opts)
         Callback = function(text) end
     })
 
+    -- Config list dropdown
+    local cfgDrop = tab:AddDropdown({
+        Title = "Config list",
+        Options = {"--"},
+        Default = "--",
+        Width = 120,
+        Callback = function(selected)
+            if selected ~= "--" then cfgInput.Set(selected) end
+        end
+    })
+
     -- Create config button
     tab:AddButton({
         Title = "Create config",
@@ -440,6 +459,12 @@ function Window:AddSettings(opts)
             if nm == "" then nm = "Config1" end
             if not configs[nm] then configs[nm] = { toggles = {} } end
             for k,v in pairs(self._toggleStates) do configs[nm].toggles[k] = v end
+            -- Refresh dropdown
+            local names = {}
+            for k,_ in pairs(configs) do table.insert(names, k) end
+            if #names == 0 then names = {"--"} end
+            cfgDrop.Refresh(names)
+            cfgDrop.Set(nm)
         end
     })
 
@@ -570,8 +595,8 @@ function Tab:AddButton(opts)
     bHit.MouseEnter:Connect(function() tw(bTrig,{BackgroundColor3=C.bg1},0.1) end)
     bHit.MouseLeave:Connect(function() tw(bTrig,{BackgroundColor3=C.bg0},0.1) end)
     bHit.MouseButton1Click:Connect(function()
-        tw(bLbl,{TextSize=9},0.05)
-        task.delay(0.05, function() tw(bLbl,{TextSize=11},0.1) end)
+        tw(bTrig,{BackgroundColor3=hex"2a2a30"},0.06)
+        task.delay(0.08, function() tw(bTrig,{BackgroundColor3=C.bg0},0.15) end)
         if cb then cb() end
     end)
 end
@@ -880,14 +905,18 @@ end
 function Window:_closeApp()
     local win = self._win
     local sg = self._sg
-    tw(win, {Size=UDim2.fromOffset(self._WW*0.85,self._WH*0.85),
-             Position=UDim2.new(0.5,-self._WW*0.425,0.5,-self._WH*0.425)}, 0.3)
-    tw(win, {BackgroundTransparency=1}, 0.25)
+    tw(win, {
+        Size=UDim2.fromOffset(self._WW*0.85,self._WH*0.85),
+        Position=UDim2.new(0.5,-self._WW*0.425,0.5,-self._WH*0.425),
+        BackgroundTransparency=1
+    }, 0.25, Enum.EasingStyle.Back, Enum.EasingDirection.In)
+    
     for _,ch in ipairs(win:GetDescendants()) do
         pcall(function()
             if ch:IsA("GuiObject") then tw(ch,{BackgroundTransparency=1},0.2) end
             if ch:IsA("TextLabel") or ch:IsA("TextButton") or ch:IsA("TextBox") then tw(ch,{TextTransparency=1},0.2) end
             if ch:IsA("ImageLabel") or ch:IsA("ImageButton") then tw(ch,{ImageTransparency=1},0.2) end
+            if ch:IsA("UIStroke") then tw(ch,{Transparency=1},0.2) end
         end)
     end
     task.delay(0.35, function()
