@@ -518,20 +518,6 @@ function Window:AddSettings(opts)
     })
 
     tab:AddButton({
-        Title = "Set as autoload",
-        ButtonText = "Set",
-        Callback = function()
-            local nm = cfgInput.Get()
-            if nm == "" then return end
-            if writefile then
-                initFolder()
-                writefile(folderName .. "/autoload.txt", nm)
-                self:Notify({Title="Autoload Set", Content="Will auto-load " .. nm .. ".json next time", Duration=3})
-            end
-        end
-    })
-
-    tab:AddButton({
         Title = "Delete config",
         ButtonText = "Delete",
         Callback = function()
@@ -545,6 +531,20 @@ function Window:AddSettings(opts)
                 cfgInput.Set("")
             else
                 self:Notify({Title="Error", Content="Config not found or cannot delete", Duration=3})
+            end
+        end
+    })
+
+    tab:AddButton({
+        Title = "Auto load",
+        ButtonText = "Set",
+        Callback = function()
+            local nm = cfgInput.Get()
+            if nm == "" then return end
+            if writefile then
+                initFolder()
+                writefile(folderName .. "/autoload.txt", nm)
+                self:Notify({Title="Autoload Set", Content="Will auto-load " .. nm .. ".json next time", Duration=3})
             end
         end
     })
