@@ -732,9 +732,9 @@ function Tab:AddSlider(opts)
     trk.InputBegan:Connect(function(inp)
         if isClick(inp) then drag=true; updS((inp.Position.X-trk.AbsolutePosition.X)/TW2) end
     end)
-    trk.InputEnded:Connect(function(inp)
+    table.insert(self._window._connections, UserInputService.InputEnded:Connect(function(inp)
         if isClick(inp) then drag=false end
-    end)
+    end))
     numL.FocusLost:Connect(function()
         local cleaned = numL.Text:gsub(suffix,"")
         local val = tonumber(cleaned)
@@ -1073,9 +1073,9 @@ function Window:_setupDrag(tbar, win)
     tbar.InputBegan:Connect(function(inp)
         if isClick(inp) then dragging=true; ds=inp.Position; sp=win.Position end
     end)
-    tbar.InputEnded:Connect(function(inp)
+    table.insert(self._connections, UserInputService.InputEnded:Connect(function(inp)
         if isClick(inp) then dragging=false end
-    end)
+    end))
     table.insert(self._connections, UserInputService.InputChanged:Connect(function(inp)
         if dragging and isMove(inp) then
             local d=inp.Position-ds
@@ -1140,10 +1140,10 @@ function Window:_setupMobileToggle(sg, win, logoId)
             tDrag=true; tDragStart=inp.Position; tStartPos=mToggle.Position; clickTime=tick()
         end
     end))
-    table.insert(self._connections, mToggle.InputEnded:Connect(function(inp)
+    table.insert(self._connections, UserInputService.InputEnded:Connect(function(inp)
         if isClick(inp) then
+            if tDrag and tick()-clickTime < 0.2 then self:_toggleMinimize() end
             tDrag=false
-            if tick()-clickTime < 0.2 then self:_toggleMinimize() end
         end
     end))
     table.insert(self._connections, UserInputService.InputChanged:Connect(function(inp)
