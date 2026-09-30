@@ -835,11 +835,14 @@ function Tab:AddDropdown(opts)
 
     populate()
 
-    return {
+    local comp = {
         Set = function(v) ddL.Text = v; if cb then cb(v) end end,
         Get = function() return ddL.Text end,
         Refresh = function(newOpts) options = newOpts; populate() end,
     }
+    local flag = opts.Flag or title:gsub(" ","_"):lower()
+    self._window._configurables[flag] = comp
+    return comp
 end
 
 -- ════════════════════════════════════════
