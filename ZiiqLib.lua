@@ -531,6 +531,24 @@ function Window:AddSettings(opts)
         end
     })
 
+    tab:AddButton({
+        Title = "Delete config",
+        ButtonText = "Delete",
+        Callback = function()
+            local nm = cfgInput.Get()
+            if nm == "" then return end
+            if delfile and isfile and isfile(folderName .. "/" .. nm .. ".json") then
+                delfile(folderName .. "/" .. nm .. ".json")
+                self:Notify({Title="Config Deleted", Content="Deleted " .. nm .. ".json", Duration=3})
+                cfgDrop.Refresh(getConfigs())
+                cfgDrop.Set("--")
+                cfgInput.Set("")
+            else
+                self:Notify({Title="Error", Content="Config not found or cannot delete", Duration=3})
+            end
+        end
+    })
+
     -- Auto-Load System (runs slightly after UI init)
     task.spawn(function()
         task.wait(1.5) -- Wait for all UI elements to be added to _configurables
@@ -739,7 +757,8 @@ function Tab:AddDropdown(opts)
     opts = opts or {}
     local title = opts.Title or "Dropdown"
     local options = opts.Options or {"Option 1","Option 2"}
-    local default = opts.Default or options[1]
+    local isMulti = opts.Multi or false
+    local default = opts.Default or (isMulti and {} or options[1])
     local cb = opts.Callback
     local fw = opts.Width
 
@@ -754,8 +773,19 @@ function Tab:AddDropdown(opts)
     local initW = fw or 120
     local ddTrig=F({bg=C.bg1,sz=UDim2.fromOffset(initW,30),pos=UDim2.new(1,-initW-12,0,8),parent=dr,z=7})
     corner(ddTrig,6); stroke(ddTrig,C.bd0,1)
-    local ddL=L({text=default,color=C.t0,ts=11,font=Enum.Font.GothamBold,
+    
+    local state = isMulti and (type(default)=="table" and default or {default}) or default
+    local function getDisplayText()
+        if not isMulti then return state end
+        if #state == 0 then return "None" end
+        if #state == 1 then return state[1] end
+        if #state <= 2 then return table.concat(state, ", ") end
+        return tostring(#state) .. " Selected"
+    end
+
+    local ddL=L({text=getDisplayText(),color=C.t0,ts=11,font=Enum.Font.GothamBold,
         sz=UDim2.new(1,-40,1,0),pos=UDim2.new(0,12,0,0),parent=ddTrig,z=8})
+    ddL.ClipsDescendants = true
     local ddArr=L({text="▼",color=C.t0,ts=14,font=Enum.Font.Arial,xa=Enum.TextXAlignment.Center,
        sz=UDim2.fromOffset(20,20),pos=UDim2.new(1,-26,0.5,-10),parent=ddTrig,z=8})
 
@@ -772,10 +802,13 @@ function Tab:AddDropdown(opts)
         ddList.Position = UDim2.fromOffset(p.X, p.Y + ddTrig.AbsoluteSize.Y + 4)
     end
 
+    local itemBtns = {}
+
     local function populate()
         for _,ch in ipairs(ddList:GetChildren()) do
             if ch:IsA("TextButton") then ch:Destroy() end
         end
+        table.clear(itemBtns)
         local opts2 = type(options)=="function" and options() or options
         if #opts2==0 then return 0, initW end
         local ddW = fw or 120
@@ -790,22 +823,46 @@ function Tab:AddDropdown(opts)
         ddTrig.Position = UDim2.new(1,-ddW-12,0,8)
         local h = #opts2*30+8
         for i,opt in ipairs(opts2) do
-            local item=B({bg=C.bg1,text=opt,color=C.t1,ts=11,font=Enum.Font.GothamBold,
+            local isSel = false
+            if isMulti then
+                isSel = table.find(state, opt) ~= nil
+            else
+                isSel = (state == opt)
+            end
+
+            local item=B({bg=isSel and C.bg2 or C.bg1,text=opt,color=isSel and C.t0 or C.t1,ts=11,font=Enum.Font.GothamBold,
                 sz=UDim2.new(1,-10,0,28),pos=UDim2.new(0,5,0,(i-1)*30+4),parent=ddList,z=51,xa=Enum.TextXAlignment.Left})
             corner(item,5)
+            itemBtns[opt] = item
+            
             item.MouseEnter:Connect(function() if ddOpen then tw(item,{BackgroundColor3=C.bg2,TextColor3=C.t0},0.1) end end)
             item.MouseLeave:Connect(function()
                 if ddOpen then
-                    if opt==ddL.Text then tw(item,{BackgroundColor3=C.bg2,TextColor3=C.t0},0.1)
-                    else tw(item,{BackgroundColor3=C.bg1,TextColor3=C.t1},0.1) end
+                    local s = isMulti and table.find(state, opt) or (state == opt)
+                    tw(item,{BackgroundColor3=s and C.bg2 or C.bg1,TextColor3=s and C.t0 or C.t1},0.1)
                 end
             end)
             item.MouseButton1Click:Connect(function()
                 if not ddOpen then return end
-                ddL.Text=opt; ddOpen=false; ddArr.Text="▼"
-                fadeDrop(ddList, true)
-                task.delay(0.25, function() if not ddOpen then ddList.Visible=false end end)
-                if cb then cb(opt, i) end
+                if isMulti then
+                    local idx = table.find(state, opt)
+                    if idx then table.remove(state, idx) else table.insert(state, opt) end
+                    ddL.Text = getDisplayText()
+                    tw(item,{BackgroundColor3=table.find(state, opt) and C.bg2 or C.bg1,TextColor3=table.find(state, opt) and C.t0 or C.t1},0.1)
+                    if cb then cb(state) end
+                else
+                    state = opt
+                    ddL.Text = opt
+                    ddOpen = false
+                    ddArr.Text = "▼"
+                    fadeDrop(ddList, true)
+                    task.delay(0.25, function() if not ddOpen then ddList.Visible=false end end)
+                    if cb then cb(state) end
+                    -- Update visual colors for others
+                    for o, btn in pairs(itemBtns) do
+                        tw(btn,{BackgroundColor3=o==state and C.bg2 or C.bg1,TextColor3=o==state and C.t0 or C.t1},0.1)
+                    end
+                end
             end)
         end
         return h, ddW
@@ -816,7 +873,7 @@ function Tab:AddDropdown(opts)
         if ddOpen then
             local h, w = populate()
             if h==0 then ddOpen=false; return end
-            updDropPos(); fadeDrop(ddList, false, ddL.Text)
+            updDropPos(); fadeDrop(ddList, false, nil)
             ddList.Visible=true; ddArr.Text="▲"
             ddList.Size=UDim2.fromOffset(w,0)
             tw(ddList,{Size=UDim2.fromOffset(w,h)},0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
@@ -836,8 +893,17 @@ function Tab:AddDropdown(opts)
     populate()
 
     local comp = {
-        Set = function(v) ddL.Text = v; if cb then cb(v) end end,
-        Get = function() return ddL.Text end,
+        Set = function(v) 
+            if type(v) == "string" and v == "--" then
+                -- This is a special edge case for empty string in generic string dropdowns
+                if not isMulti then state = v; ddL.Text = v end
+            else
+                state = isMulti and (type(v)=="table" and v or {v}) or v
+                ddL.Text = getDisplayText()
+                if cb then cb(state) end 
+            end
+        end,
+        Get = function() return state end,
         Refresh = function(newOpts) options = newOpts; populate() end,
     }
     local flag = opts.Flag or title:gsub(" ","_"):lower()
