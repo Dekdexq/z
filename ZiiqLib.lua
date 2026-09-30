@@ -533,6 +533,7 @@ function Window:AddSettings(opts)
 
     -- Auto-Load System (runs slightly after UI init)
     task.spawn(function()
+        task.wait(1.5) -- Wait for all UI elements to be added to _configurables
         if isfile and isfile(folderName .. "/autoload.txt") then
             local autoName = readfile(folderName .. "/autoload.txt")
             if autoName and autoName ~= "" and isfile(folderName .. "/" .. autoName .. ".json") then
