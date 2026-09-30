@@ -118,11 +118,6 @@ local function fadeDrop(list, fadeOut, selectedText)
                 tw(ch, {TextTransparency=1, BackgroundTransparency=1}, dur)
             else
                 ch.TextTransparency=0; ch.BackgroundTransparency=0
-                if ch.Text == selectedText then
-                    ch.BackgroundColor3 = C.bg3; ch.TextColor3 = C.t0
-                else
-                    ch.BackgroundColor3 = C.bg2; ch.TextColor3 = C.t2
-                end
             end
         elseif ch:IsA("UIStroke") then
             if fadeOut then tw(ch, {Transparency=1}, dur) else ch.Transparency=0 end
@@ -1109,8 +1104,8 @@ end
 function Window:_setupMobileToggle(sg, win, logoId)
     local mToggle = Instance.new("ImageButton")
     mToggle.Size = UDim2.fromOffset(42, 42)
-    mToggle.AnchorPoint = Vector2.new(0.5, 0)
-    mToggle.Position = UDim2.new(0.5, 0, 0, 12)
+    mToggle.AnchorPoint = Vector2.new(1, 0)
+    mToggle.Position = UDim2.new(1, -20, 0, 20)
     mToggle.BackgroundColor3 = hex"222222"
     mToggle.BackgroundTransparency = 0.5
     mToggle.BorderSizePixel = 0
