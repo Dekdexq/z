@@ -161,6 +161,8 @@ function ZiiqLib:CreateWindow(opts)
     self._activeTab = nil
     self._panelMap = {}
     self._toggleStates = {}
+    self._configurables = {}
+    self._folderName = "ZiiqConfigs"
 
     -- Anti-cheat: randomize GUI name so it cant be detected
     local guiId = "Z_"..tostring(math.random(100000,999999))
@@ -428,21 +430,40 @@ function Window:AddSettings(opts)
 
     -- Configuration section
     tab:AddSection("Configuration")
+    
+    local HttpService = game:GetService("HttpService")
+    local folderName = "ZiiqConfigs"
+    
+    local function initFolder()
+        if makefolder and not isfolder(folderName) then
+            makefolder(folderName)
+        end
+    end
+    initFolder()
 
-    -- Config name textbox
-    local configs = {}
-    local autoloadName = nil
+    local function getConfigs()
+        local list = {}
+        if listfiles and isfolder(folderName) then
+            for _, file in ipairs(listfiles(folderName)) do
+                if file:match(".json$") then
+                    local name = file:match("([^/\\]+)%.json$")
+                    if name then table.insert(list, name) end
+                end
+            end
+        end
+        if #list == 0 then return {"--"} end
+        return list
+    end
 
     local cfgInput = tab:AddTextbox({
         Title = "Config name",
-        Placeholder = "",
+        Placeholder = "config_name",
         Callback = function(text) end
     })
 
-    -- Config list dropdown
     local cfgDrop = tab:AddDropdown({
         Title = "Config list",
-        Options = {"--"},
+        Options = getConfigs(),
         Default = "--",
         Width = 120,
         Callback = function(selected)
@@ -450,44 +471,85 @@ function Window:AddSettings(opts)
         end
     })
 
-    -- Create config button
     tab:AddButton({
-        Title = "Create config",
-        ButtonText = "Create",
+        Title = "Create / Save",
+        ButtonText = "Save",
         Callback = function()
             local nm = cfgInput.Get()
-            if nm == "" then nm = "Config1" end
-            if not configs[nm] then configs[nm] = { toggles = {} } end
-            for k,v in pairs(self._toggleStates) do configs[nm].toggles[k] = v end
-            -- Refresh dropdown
-            local names = {}
-            for k,_ in pairs(configs) do table.insert(names, k) end
-            if #names == 0 then names = {"--"} end
-            cfgDrop.Refresh(names)
-            cfgDrop.Set(nm)
+            if nm == "" then nm = "default" end
+            local data = {}
+            for flag, comp in pairs(self._configurables) do
+                pcall(function() data[flag] = comp.Get() end)
+            end
+            if writefile then
+                initFolder()
+                writefile(folderName .. "/" .. nm .. ".json", HttpService:JSONEncode(data))
+                self:Notify({Title="Config Saved", Content="Saved " .. nm .. ".json", Duration=3})
+                cfgDrop.Refresh(getConfigs())
+                cfgDrop.Set(nm)
+            else
+                self:Notify({Title="Error", Content="Executor does not support saving", Duration=3})
+            end
         end
     })
 
-    -- Load config button
     tab:AddButton({
         Title = "Load config",
         ButtonText = "Load",
         Callback = function()
             local nm = cfgInput.Get()
-            if nm == "" or not configs[nm] then return end
-            for k,v in pairs(configs[nm].toggles) do self._toggleStates[k] = v end
+            if nm == "" then return end
+            if readfile and isfile and isfile(folderName .. "/" .. nm .. ".json") then
+                local s, data = pcall(function() return HttpService:JSONDecode(readfile(folderName .. "/" .. nm .. ".json")) end)
+                if s and type(data) == "table" then
+                    for flag, val in pairs(data) do
+                        if self._configurables[flag] then
+                            pcall(function() self._configurables[flag].Set(val) end)
+                        end
+                    end
+                    self:Notify({Title="Config Loaded", Content="Loaded " .. nm .. ".json", Duration=3})
+                else
+                    self:Notify({Title="Error", Content="Failed to decode config", Duration=3})
+                end
+            else
+                self:Notify({Title="Error", Content="Config not found or unsupported", Duration=3})
+            end
         end
     })
 
-    -- Set as autoload
     tab:AddButton({
         Title = "Set as autoload",
         ButtonText = "Set",
         Callback = function()
             local nm = cfgInput.Get()
-            if nm ~= "" and configs[nm] then autoloadName = nm end
+            if nm == "" then return end
+            if writefile then
+                initFolder()
+                writefile(folderName .. "/autoload.txt", nm)
+                self:Notify({Title="Autoload Set", Content="Will auto-load " .. nm .. ".json next time", Duration=3})
+            end
         end
     })
+
+    -- Auto-Load System (runs slightly after UI init)
+    task.spawn(function()
+        if isfile and isfile(folderName .. "/autoload.txt") then
+            local autoName = readfile(folderName .. "/autoload.txt")
+            if autoName and autoName ~= "" and isfile(folderName .. "/" .. autoName .. ".json") then
+                local s, data = pcall(function() return HttpService:JSONDecode(readfile(folderName .. "/" .. autoName .. ".json")) end)
+                if s and type(data) == "table" then
+                    for flag, val in pairs(data) do
+                        if self._configurables[flag] then
+                            pcall(function() self._configurables[flag].Set(val) end)
+                        end
+                    end
+                    self:Notify({Title="Autoloaded", Content="Automatically loaded " .. autoName, Duration=3})
+                    cfgDrop.Set(autoName)
+                    cfgInput.Set(autoName)
+                end
+            end
+        end
+    end)
 
     return tab
 end
@@ -536,12 +598,12 @@ function Tab:AddToggle(opts)
     corner(knob,7)
 
     local state = default
-    local key = title:gsub(" ","_"):lower()
-    self._window._toggleStates[key] = state
+    local flag = opts.Flag or title:gsub(" ","_"):lower()
+    self._window._toggleStates[flag] = state
 
     local function setToggle(on)
         state = on
-        self._window._toggleStates[key] = on
+        self._window._toggleStates[flag] = on
         grad.Enabled = on
         tw(wrap,{BackgroundColor3=on and hex"ffffff" or hex"1c1f26"},0.22)
         tw(knob,{Position=on and UDim2.new(0,19,0.5,-7) or UDim2.new(0,3,0.5,-7),
@@ -557,10 +619,9 @@ function Tab:AddToggle(opts)
 
     if default then task.defer(function() setToggle(true) end) end
 
-    return {
-        Set = setToggle,
-        Get = function() return state end,
-    }
+    local comp = { Set = setToggle, Get = function() return state end }
+    self._window._configurables[flag] = comp
+    return comp
 end
 
 -- ════════════════════════════════════════
@@ -664,9 +725,10 @@ function Tab:AddSlider(opts)
         if drag and isMove(inp) then updS((inp.Position.X-trk.AbsolutePosition.X)/TW2) end
     end))
 
-    return {
-        Set = function(v) updS((v-mn)/(mx-mn)) end,
-    }
+    local comp = { Set = function(v) updS((v-mn)/(mx-mn)) end, Get = function() return math.round(mn + (fill.Size.X.Offset/TW2)*(mx-mn)) end }
+    local flag = opts.Flag or title:gsub(" ","_"):lower()
+    self._window._configurables[flag] = comp
+    return comp
 end
 
 -- ════════════════════════════════════════
@@ -876,10 +938,13 @@ function Tab:AddTextbox(opts)
         if cb then cb(box.Text) end
     end)
 
-    return {
+    local comp = {
         Get = function() return box.Text end,
-        Set = function(v) box.Text = v end,
+        Set = function(v) box.Text = v; if cb then cb(v) end end,
     }
+    local flag = opts.Flag or title:gsub(" ","_"):lower()
+    self._window._configurables[flag] = comp
+    return comp
 end
 
 -- ════════════════════════════════════════
@@ -905,9 +970,13 @@ end
 function Window:_closeApp()
     local win = self._win
     local sg = self._sg
+    
+    local cx = win.Position.X.Offset + self._WW/2
+    local cy = win.Position.Y.Offset + self._WH/2
+    
     tw(win, {
-        Size=UDim2.fromOffset(self._WW*0.85,self._WH*0.85),
-        Position=UDim2.new(0.5,-self._WW*0.425,0.5,-self._WH*0.425),
+        Size=UDim2.fromOffset(self._WW*0.3, self._WH*0.3),
+        Position=UDim2.new(win.Position.X.Scale, cx - self._WW*0.15, win.Position.Y.Scale, cy - self._WH*0.15),
         BackgroundTransparency=1
     }, 0.25, Enum.EasingStyle.Back, Enum.EasingDirection.In)
     
@@ -917,8 +986,10 @@ function Window:_closeApp()
             if ch:IsA("TextLabel") or ch:IsA("TextButton") or ch:IsA("TextBox") then tw(ch,{TextTransparency=1},0.2) end
             if ch:IsA("ImageLabel") or ch:IsA("ImageButton") then tw(ch,{ImageTransparency=1},0.2) end
             if ch:IsA("UIStroke") then tw(ch,{Transparency=1},0.2) end
+            if ch:IsA("ScrollingFrame") then tw(ch,{ScrollBarImageTransparency=1},0.2) end
         end)
     end
+    
     task.delay(0.35, function()
         for _, c in ipairs(self._connections) do
             if typeof(c) == "RBXScriptConnection" then c:Disconnect() end
@@ -1031,6 +1102,7 @@ function Window:_toggleMinimize()
                 if ch:IsA("TextLabel") or ch:IsA("TextButton") or ch:IsA("TextBox") then tw(ch,{TextTransparency=0},0.2) end
                 if ch:IsA("ImageLabel") or ch:IsA("ImageButton") then tw(ch,{ImageTransparency=0},0.2) end
                 if ch:IsA("UIStroke") then tw(ch,{Transparency=0},0.2) end
+                if ch:IsA("ScrollingFrame") then tw(ch,{ScrollBarImageTransparency=0},0.2) end
             end)
         end
         self._minimized = false
@@ -1057,6 +1129,7 @@ function Window:_toggleMinimize()
                 if ch:IsA("TextLabel") or ch:IsA("TextButton") or ch:IsA("TextBox") then tw(ch,{TextTransparency=1},0.2) end
                 if ch:IsA("ImageLabel") or ch:IsA("ImageButton") then tw(ch,{ImageTransparency=1},0.2) end
                 if ch:IsA("UIStroke") then tw(ch,{Transparency=1},0.2) end
+                if ch:IsA("ScrollingFrame") then tw(ch,{ScrollBarImageTransparency=1},0.2) end
             end)
         end
         task.delay(0.3, function() win.Visible = false end)
