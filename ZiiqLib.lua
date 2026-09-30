@@ -6,7 +6,7 @@
   ╚══════════════════════════════════════════════════════════════╝
   
   Usage:
-    local Ziiq = loadstring(game:HttpGet("YOUR_RAW_URL"))()
+    local Ziiq = loadstring(game:HttpGet("https://raw.githubusercontent.com/Dekdexq/z/refs/heads/main/ZiiqLib.lua"))()
     local Window = Ziiq:CreateWindow({ Title = "My Hub", SubTitle = "v1.0" })
     local Tab = Window:AddTab({ Title = "Main", Icon = "7734068321" })
     Tab:AddToggle({ Title = "God Mode", Callback = function(v) end })
@@ -246,10 +246,14 @@ function ZiiqLib:CreateWindow(opts)
     self:_setupResize(win)
 
     -- Keybind
+    self._minimized = false
+    self._minKey = minKey
+    self._origPos = win.Position
+    self._origSize = win.Size
     table.insert(self._connections, UserInputService.InputBegan:Connect(function(inp,gpe)
         if gpe then return end
-        if inp.KeyCode == minKey then
-            win.Visible = not win.Visible
+        if inp.KeyCode == self._minKey then
+            self:_toggleMinimize()
         end
     end))
 
@@ -410,12 +414,55 @@ function Window:AddSettings(opts)
         Title = "Minimize Bind",
         Default = "RightShift",
         Callback = function(key)
-            -- Rebind handled internally
+            self._minKey = key
         end
     })
 
     -- Configuration section
     tab:AddSection("Configuration")
+
+    -- Config name textbox
+    local configs = {}
+    local autoloadName = nil
+
+    local cfgInput = tab:AddTextbox({
+        Title = "Config name",
+        Placeholder = "",
+        Callback = function(text) end
+    })
+
+    -- Create config button
+    tab:AddButton({
+        Title = "Create config",
+        ButtonText = "Create",
+        Callback = function()
+            local nm = cfgInput.Get()
+            if nm == "" then nm = "Config1" end
+            if not configs[nm] then configs[nm] = { toggles = {} } end
+            for k,v in pairs(self._toggleStates) do configs[nm].toggles[k] = v end
+        end
+    })
+
+    -- Load config button
+    tab:AddButton({
+        Title = "Load config",
+        ButtonText = "Load",
+        Callback = function()
+            local nm = cfgInput.Get()
+            if nm == "" or not configs[nm] then return end
+            for k,v in pairs(configs[nm].toggles) do self._toggleStates[k] = v end
+        end
+    })
+
+    -- Set as autoload
+    tab:AddButton({
+        Title = "Set as autoload",
+        ButtonText = "Set",
+        Callback = function()
+            local nm = cfgInput.Get()
+            if nm ~= "" and configs[nm] then autoloadName = nm end
+        end
+    })
 
     return tab
 end
@@ -584,7 +631,8 @@ function Tab:AddSlider(opts)
         if isClick(inp) then drag=false end
     end)
     numL.FocusLost:Connect(function()
-        local val = tonumber(numL.Text:gsub(suffix,""))
+        local cleaned = numL.Text:gsub(suffix,"")
+        local val = tonumber(cleaned)
         if val then updS((val-mn)/(mx-mn)) else numL.Text = tostring(math.round(mn + (fill.Size.X.Offset/TW2)*(mx-mn)))..suffix end
     end)
     table.insert(self._window._connections, UserInputService.InputChanged:Connect(function(inp)
@@ -925,7 +973,7 @@ function Window:_setupMobileToggle(sg, win, logoId)
     table.insert(self._connections, mToggle.InputEnded:Connect(function(inp)
         if isClick(inp) then
             tDrag=false
-            if tick()-clickTime < 0.2 then win.Visible = not win.Visible end
+            if tick()-clickTime < 0.2 then self:_toggleMinimize() end
         end
     end))
     table.insert(self._connections, UserInputService.InputChanged:Connect(function(inp)
@@ -939,6 +987,53 @@ function Window:_setupMobileToggle(sg, win, logoId)
     end))
 end
 
+
+function Window:_toggleMinimize()
+    local win = self._win
+    if self._minimized then
+        -- Restore: appear from center
+        win.Visible = true
+        local targetPos = self._origPos or UDim2.new(0.5,-self._WW/2,0.5,-self._WH/2)
+        local targetSize = self._origSize or UDim2.fromOffset(self._WW, self._WH)
+        tw(win, {Size=targetSize, Position=targetPos, BackgroundTransparency=0}, 0.3, Enum.EasingStyle.Back)
+        for _,ch in ipairs(win:GetDescendants()) do
+            pcall(function()
+                if ch:IsA("GuiObject") then tw(ch,{BackgroundTransparency=ch:GetAttribute("_savedBT") or 0},0.2) end
+                if ch:IsA("TextLabel") or ch:IsA("TextButton") or ch:IsA("TextBox") then tw(ch,{TextTransparency=0},0.2) end
+                if ch:IsA("ImageLabel") or ch:IsA("ImageButton") then tw(ch,{ImageTransparency=0},0.2) end
+                if ch:IsA("UIStroke") then tw(ch,{Transparency=0},0.2) end
+            end)
+        end
+        self._minimized = false
+    else
+        -- Minimize: shrink to center and fade
+        self._origPos = win.Position
+        self._origSize = win.Size
+        -- Save current transparencies
+        for _,ch in ipairs(win:GetDescendants()) do
+            pcall(function()
+                if ch:IsA("GuiObject") then ch:SetAttribute("_savedBT", ch.BackgroundTransparency) end
+            end)
+        end
+        local cx = win.Position.X.Offset + self._WW/2
+        local cy = win.Position.Y.Offset + self._WH/2
+        tw(win, {
+            Size=UDim2.fromOffset(self._WW*0.3, self._WH*0.3),
+            Position=UDim2.new(win.Position.X.Scale, cx - self._WW*0.15, win.Position.Y.Scale, cy - self._WH*0.15),
+            BackgroundTransparency=1
+        }, 0.25, Enum.EasingStyle.Back, Enum.EasingDirection.In)
+        for _,ch in ipairs(win:GetDescendants()) do
+            pcall(function()
+                if ch:IsA("GuiObject") then tw(ch,{BackgroundTransparency=1},0.2) end
+                if ch:IsA("TextLabel") or ch:IsA("TextButton") or ch:IsA("TextBox") then tw(ch,{TextTransparency=1},0.2) end
+                if ch:IsA("ImageLabel") or ch:IsA("ImageButton") then tw(ch,{ImageTransparency=1},0.2) end
+                if ch:IsA("UIStroke") then tw(ch,{Transparency=1},0.2) end
+            end)
+        end
+        task.delay(0.3, function() win.Visible = false end)
+        self._minimized = true
+    end
+end
 -- ════════════════════════════════════════
 --  NOTIFICATION
 -- ════════════════════════════════════════
