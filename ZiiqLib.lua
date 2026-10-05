@@ -294,7 +294,7 @@ function Window:AddTab(opts)
     local ico = opts.Icon
 
     -- Nav button
-    local btnFrame = F({bg=C.bg0, sz=UDim2.new(1,-24,0,32), pos=UDim2.new(0,12,0,self._navY), parent=self._sb, z=5})
+    local btnFrame = F({bg=C.bg0, sz=UDim2.new(1,-16,0,32), pos=UDim2.new(0,8,0,self._navY), parent=self._sb, z=5})
     corner(btnFrame, 8)
     btnFrame.BackgroundTransparency = 1
 
@@ -319,7 +319,7 @@ function Window:AddTab(opts)
     end
 
     local lblObj = L({text=lbl,color=C.t2,ts=11,font=Enum.Font.GothamBold,
-        sz=UDim2.new(1,-textX-8,1,0),pos=UDim2.new(0,textX,0,0),parent=btnFrame,z=6})
+        sz=UDim2.new(1,-textX-4,1,0),pos=UDim2.new(0,textX,0,0),parent=btnFrame,z=6})
     lblObj.TextScaled = true
     local constraint = Instance.new("UITextSizeConstraint")
     constraint.MaxTextSize = 12
@@ -332,7 +332,7 @@ function Window:AddTab(opts)
 
     -- Dynamic Sidebar Width
     local textWidth = TextService:GetTextSize(lbl, 12, Enum.Font.GothamBold, Vector2.new(1000, 20)).X
-    local reqW = textX + textWidth + 32
+    local reqW = textX + textWidth + 20
     if reqW > self._SBW then
         self._SBW = reqW
         self._sb.Size = UDim2.new(0, self._SBW, 1, -44)
