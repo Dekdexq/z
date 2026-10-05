@@ -1137,13 +1137,20 @@ function Window:_setupMobileToggle(sg, win, logoId)
     mToggle.Size = UDim2.fromOffset(42, 42)
     mToggle.AnchorPoint = Vector2.new(1, 0)
     mToggle.Position = UDim2.new(1, -20, 0, 20)
-    mToggle.BackgroundColor3 = hex"222222"
-    mToggle.BackgroundTransparency = 0.5
+    mToggle.BackgroundColor3 = C.bg1 or Color3.fromRGB(30, 30, 30)
+    mToggle.BackgroundTransparency = 0.2
     mToggle.BorderSizePixel = 0
     mToggle.AutoButtonColor = false
     mToggle.Active = true
     mToggle.Selectable = true
     corner(mToggle, 21)
+    
+    local stroke = Instance.new("UIStroke")
+    stroke.Color = C.t1 or Color3.fromRGB(200, 200, 200)
+    stroke.Thickness = 1
+    stroke.Transparency = 0.5
+    stroke.Parent = mToggle
+
     mToggle.ClipsDescendants = true
     mToggle.Parent = sg
     mToggle.ZIndex = 999
@@ -1255,6 +1262,19 @@ function Window:Notify(opts)
             task.delay(0.35, function() nf:Destroy() end)
         end)
     end
+end
+
+function Window:Toggle()
+    self:_toggleMinimize()
+end
+
+function Window:Destroy()
+    if self._sg then self._sg:Destroy() end
+    if shared.ZiiqUnload then shared.ZiiqUnload() end
+end
+
+function Window:Close()
+    self:Destroy()
 end
 
 return ZiiqLib
