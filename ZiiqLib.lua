@@ -201,7 +201,7 @@ function ZiiqLib:CreateWindow(opts)
 
     -- Window
     local WW, WH = winSize.X.Offset, winSize.Y.Offset
-    local SBW = 180
+    local SBW = 200
     local win = F({bg=C.bg0, sz=winSize, pos=UDim2.new(0.5,-WW/2,0.5,-WH/2), parent=sg, z=2, clip=true})
     corner(win, 14)
     self._win = win
@@ -320,7 +320,10 @@ function Window:AddTab(opts)
 
     local lblObj = L({text=lbl,color=C.t2,ts=11,font=Enum.Font.GothamBold,
         sz=UDim2.new(1,-textX-8,1,0),pos=UDim2.new(0,textX,0,0),parent=btnFrame,z=6})
-    lblObj.TextTruncate = Enum.TextTruncate.AtEnd
+    lblObj.TextScaled = true
+    local constraint = Instance.new("UITextSizeConstraint")
+    constraint.MaxTextSize = 12
+    constraint.Parent = lblObj
 
     local btn = B({bg=hex"000000",sz=UDim2.fromScale(1,1),parent=btnFrame,z=7})
     btn.BackgroundTransparency=1
