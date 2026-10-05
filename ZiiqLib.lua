@@ -123,7 +123,13 @@ local function fadeDrop(list, fadeOut, selectedText)
             if fadeOut then tw(ch, {Transparency=1}, dur) else ch.Transparency=0 end
         end
     end
-    if fadeOut then tw(list, {BackgroundTransparency=1}, dur) else list.BackgroundTransparency=0 end
+    if fadeOut then 
+        tw(list, {BackgroundTransparency=1}, dur) 
+        pcall(function() tw(list, {ScrollBarImageTransparency=1}, dur) end)
+    else 
+        list.BackgroundTransparency=0 
+        pcall(function() list.ScrollBarImageTransparency=0 end)
+    end
 end
 
 -- ════════════════════════════════════════
@@ -204,7 +210,7 @@ function ZiiqLib:CreateWindow(opts)
     self._SBW = SBW
 
     -- Top Bar
-    local tbar = F({bg=C.bg1, sz=UDim2.new(1,0,0,44), parent=win, z=10})
+    local tbar = F({bg=hex"000000", sz=UDim2.new(1,0,0,44), parent=win, z=10})
     self._tbar = tbar
 
     -- Close Button
@@ -314,6 +320,7 @@ function Window:AddTab(opts)
 
     local lblObj = L({text=lbl,color=C.t2,ts=11,font=Enum.Font.GothamBold,
         sz=UDim2.new(1,-textX-8,1,0),pos=UDim2.new(0,textX,0,0),parent=btnFrame,z=6})
+    lblObj.TextTruncate = Enum.TextTruncate.AtEnd
 
     local btn = B({bg=hex"000000",sz=UDim2.fromScale(1,1),parent=btnFrame,z=7})
     btn.BackgroundTransparency=1
@@ -785,7 +792,11 @@ function Tab:AddDropdown(opts)
        sz=UDim2.fromOffset(20,20),pos=UDim2.new(1,-26,0.5,-10),parent=ddTrig,z=8})
 
     local ddOpen=false
-    local ddList=F({bg=C.bg1,sz=UDim2.fromOffset(initW,0),parent=self._sg,z=50,clip=true})
+    local ddList=F({class="ScrollingFrame",bg=C.bg1,sz=UDim2.fromOffset(initW,0),parent=self._sg,z=50,clip=true})
+    ddList.ScrollBarThickness = 3
+    ddList.ScrollBarImageColor3 = C.bd2
+    ddList.CanvasSize = UDim2.new(0,0,0,0)
+    ddList.ScrollingDirection = Enum.ScrollingDirection.Y
     corner(ddList,6); stroke(ddList,C.bd0,1)
     ddList.Visible=false
 
@@ -871,7 +882,9 @@ function Tab:AddDropdown(opts)
             updDropPos(); fadeDrop(ddList, false, nil)
             ddList.Visible=true; ddArr.Text="▲"
             ddList.Size=UDim2.fromOffset(w,0)
-            tw(ddList,{Size=UDim2.fromOffset(w,h)},0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+            local maxH = math.clamp(h, 0, 188)
+            ddList.CanvasSize = UDim2.fromOffset(0, h)
+            tw(ddList,{Size=UDim2.fromOffset(w,maxH)},0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
         else
             ddArr.Text="▼"; fadeDrop(ddList, true)
             task.delay(0.25, function() if not ddOpen then ddList.Visible=false end end)
