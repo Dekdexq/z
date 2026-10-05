@@ -1135,10 +1135,10 @@ end
 function Window:_setupMobileToggle(sg, win, logoId)
     local mToggle = Instance.new("ImageButton")
     mToggle.Size = UDim2.fromOffset(42, 42)
-    mToggle.AnchorPoint = Vector2.new(1, 0)
-    mToggle.Position = UDim2.new(1, -20, 0, 20)
-    mToggle.BackgroundColor3 = C.bg1 or Color3.fromRGB(30, 30, 30)
-    mToggle.BackgroundTransparency = 0.2
+    mToggle.AnchorPoint = Vector2.new(0, 0.5)
+    mToggle.Position = UDim2.new(0, 10, 0.5, 0)
+    mToggle.BackgroundColor3 = Color3.new(0, 0, 0)
+    mToggle.BackgroundTransparency = 0
     mToggle.BorderSizePixel = 0
     mToggle.AutoButtonColor = false
     mToggle.Active = true
@@ -1162,6 +1162,10 @@ function Window:_setupMobileToggle(sg, win, logoId)
         mLogo.Position = UDim2.new(0.5, -35, 0.5, -35)
         mLogo.Image = "rbxthumb://type=Asset&id="..tostring(logoId).."&w=420&h=420"
         mLogo.Parent = mToggle
+        
+        -- Optimized infinite rotation
+        local tween = game:GetService("TweenService"):Create(mLogo, TweenInfo.new(3, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut, -1), {Rotation = 360})
+        tween:Play()
     else
         L({text="Z",color=C.t0,ts=16,font=Enum.Font.GothamBold,
            xa=Enum.TextXAlignment.Center,sz=UDim2.fromScale(1,1),parent=mToggle,z=1000})
