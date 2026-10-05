@@ -201,7 +201,7 @@ function ZiiqLib:CreateWindow(opts)
 
     -- Window
     local WW, WH = winSize.X.Offset, winSize.Y.Offset
-    local SBW = 200
+    local SBW = 130
     local win = F({bg=C.bg0, sz=winSize, pos=UDim2.new(0.5,-WW/2,0.5,-WH/2), parent=sg, z=2, clip=true})
     corner(win, 14)
     self._win = win
@@ -329,6 +329,20 @@ function Window:AddTab(opts)
     btn.BackgroundTransparency=1
 
     self._navY = self._navY + 38
+
+    -- Dynamic Sidebar Width
+    local textWidth = TextService:GetTextSize(lbl, 12, Enum.Font.GothamBold, Vector2.new(1000, 20)).X
+    local reqW = textX + textWidth + 32
+    if reqW > self._SBW then
+        self._SBW = reqW
+        self._sb.Size = UDim2.new(0, self._SBW, 1, -44)
+        self._contentArea.pos = UDim2.new(0, self._SBW, 0, 44)
+        self._contentArea.sz = UDim2.new(1, -self._SBW, 1, -44)
+        for _, p in pairs(self._panelMap) do
+            p.Position = self._contentArea.pos
+            p.Size = self._contentArea.sz
+        end
+    end
 
     -- Panel (ScrollingFrame)
     local panel = Instance.new("ScrollingFrame")
