@@ -201,7 +201,7 @@ function ZiiqLib:CreateWindow(opts)
 
     -- Window
     local WW, WH = winSize.X.Offset, winSize.Y.Offset
-    local SBW = 150
+    local SBW = 180
     local win = F({bg=C.bg0, sz=winSize, pos=UDim2.new(0.5,-WW/2,0.5,-WH/2), parent=sg, z=2, clip=true})
     corner(win, 14)
     self._win = win
