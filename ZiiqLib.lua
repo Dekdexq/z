@@ -331,7 +331,8 @@ function Window:AddTab(opts)
     self._navY = self._navY + 38
 
     -- Dynamic Sidebar Width
-    local textWidth = TextService:GetTextSize(lbl, 12, Enum.Font.GothamBold, Vector2.new(1000, 20)).X
+    -- Use a safe approximation for text width to avoid executor TextService bugs
+    local textWidth = #lbl * 7.5 
     local reqW = textX + textWidth + 20
     if reqW > self._SBW then
         self._SBW = reqW
