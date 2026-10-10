@@ -1745,7 +1745,14 @@ local QuestRemote = ReplicatedStorage.Communication.ServerAndClient.Signals.Sign
 local SignalEvent = require(ReplicatedStorage.Communication.ServerAndClient.Signals.SignalEvent)
 local SignalFunction = require(ReplicatedStorage.Communication.ServerAndClient.Signals.SignalFunction)
 local Shop = require(ReplicatedStorage.CAM.Global.Shop)
-local Regions = require(ReplicatedStorage.Regions)
+local Regions = { GetNpcSpawn = function() return nil end }
+do
+    local regionsModule = ReplicatedStorage:FindFirstChild("Regions", true)
+    if regionsModule and regionsModule:IsA("ModuleScript") then
+        local ok, loaded = pcall(require, regionsModule)
+        if ok and type(loaded)=="table" then Regions=loaded end
+    end
+end
 local QuestUtility = require(ReplicatedStorage.CAM.Global.Utility)
 local questStatusLabel = nil
 local distanceStatusLabel = nil
